@@ -1,0 +1,4 @@
+node_modules
+data.db*
+.wwebjs_auth
+.wwebjs_cache

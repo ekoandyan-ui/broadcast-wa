@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WA Broadcast</title>
+<style>
+:root{--bg:#f3f5f2;--card:#fff;--ink:#1c2a26;--mute:#66756f;--line:#d9e0dc;--acc:#0d6b57;--acc2:#e8f3ef;--bad:#b3261e}
+@media(prefers-color-scheme:dark){:root{--bg:#121a17;--card:#1b2622;--ink:#e6eeea;--mute:#8fa19a;--line:#2c3a35;--acc:#4fc3a1;--acc2:#1f332c;--bad:#ff8a80}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Segoe UI",system-ui,sans-serif}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:14px 20px;background:var(--card);border-bottom:1px solid var(--line)}
+h1{font-size:18px;margin:0}
+.pill{padding:4px 12px;border-radius:99px;background:var(--acc2);color:var(--acc);font-weight:600;font-size:13px}
+.pill.off{background:#fde8e6;color:var(--bad)}
+nav{display:flex;gap:4px;padding:10px 20px 0}
+nav button{border:0;background:none;padding:9px 16px;font:inherit;color:var(--mute);cursor:pointer;border-bottom:2px solid transparent}
+nav button.on{color:var(--acc);border-color:var(--acc);font-weight:600}
+main{max-width:980px;margin:0 auto;padding:16px 20px 60px}
+section{display:none}section.on{display:block}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:18px;margin-bottom:16px}
+label{display:block;font-weight:600;margin:10px 0 4px}
+input,select,textarea{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font:inherit}
+textarea{min-height:130px;resize:vertical}
+.row{display:flex;gap:12px;flex-wrap:wrap}.row>*{flex:1;min-width:140px}
+button.btn{padding:9px 18px;border:0;border-radius:6px;background:var(--acc);color:#fff;font:inherit;font-weight:600;cursor:pointer;margin-top:12px}
+button.btn.sec{background:var(--acc2);color:var(--acc)}button.btn.bad{background:var(--bad)}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line);vertical-align:top}th{color:var(--mute);font-weight:600;font-size:13px}
+.wrap{overflow-x:auto}
+.bar{height:10px;background:var(--acc2);border-radius:99px;overflow:hidden;margin:10px 0}.bar i{display:block;height:100%;width:0;background:var(--acc);transition:width .3s}
+.ok{color:var(--acc)}.err{color:var(--bad)}.mute{color:var(--mute);font-size:13px}
+#qr{max-width:260px;display:block;margin:10px auto}
+</style>
+</head>
+<body>
+<header><h1>WA Broadcast</h1><span id="st" class="pill off">Memeriksa…</span></header>
+<nav id="tabs">
+  <button data-t="kirim" class="on">Kirim broadcast</button>
+  <button data-t="kontak">Kontak</button>
+  <button data-t="riwayat">Riwayat</button>
+</nav>
+<main>
+<div id="qrbox" class="card" style="display:none">
+  <b>Hubungkan WhatsApp</b>
+  <p class="mute">Buka WhatsApp di HP → Perangkat tertaut → Tautkan perangkat → scan kode ini.</p>
+  <img id="qr" alt="Kode QR WhatsApp">
+</div>
+
+<section id="kirim" class="on">
+  <div class="card">
+    <label for="grup">Penerima</label>
+    <select id="grup"></select>
+    <label for="pesan">Pesan</label>
+    <textarea id="pesan" placeholder="Halo {{nama}}, ..."></textarea>
+    <p class="mute">Variabel: <code>{{nama}}</code> <code>{{nomor}}</code> <code>{{grup}}</code>. Gunakan *tebal* dan _miring_ seperti di WhatsApp.</p>
+    <div class="row">
+      <div><label for="minD">Jeda minimal (detik)</label><input id="minD" type="number" min="3" value="5"></div>
+      <div><label for="maxD">Jeda maksimal (detik)</label><input id="maxD" type="number" min="3" value="15"></div>
+    </div>
+    <button class="btn" id="kirimBtn">Kirim sekarang</button>
+    <button class="btn bad" id="stopBtn" style="display:none">Hentikan</button>
+  </div>
+  <div class="card" id="prog" style="display:none">
+    <b id="progTxt"></b>
+    <div class="bar"><i id="progBar"></i></div>
+  </div>
+</section>
+
+<section id="kontak">
+  <div class="card">
+    <b>Tambah kontak</b>
+    <div class="row">
+      <div><label for="n1">Nama</label><input id="n1"></div>
+      <div><label for="n2">Nomor</label><input id="n2" placeholder="0812xxxx"></div>
+      <div><label for="n3">Grup</label><input id="n3" placeholder="Umum"></div>
+    </div>
+    <button class="btn" id="addBtn">Simpan kontak</button>
+  </div>
+  <div class="card">
+    <b>Impor banyak kontak</b>
+    <p class="mute">Satu baris per kontak: <code>nama,nomor,grup</code> (grup boleh dikosongkan). Salin langsung dari Excel juga bisa.</p>
+    <textarea id="imp" placeholder="Budi,081234567890,IGD&#10;Sari,085211112222,Farmasi"></textarea>
+    <button class="btn sec" id="impBtn">Impor</button>
+  </div>
+  <div class="card wrap"><table><thead><tr><th>Nama</th><th>Nomor</th><th>Grup</th><th></th></tr></thead><tbody id="ctb"></tbody></table></div>
+</section>
+
+<section id="riwayat">
+  <div class="card wrap">
+    <button class="btn sec" id="clrBtn" style="margin:0 0 10px">Hapus riwayat</button>
+    <table><thead><tr><th>Waktu</th><th>Penerima</th><th>Status</th><th>Pesan</th></tr></thead><tbody id="ltb"></tbody></table>
+  </div>
+</section>
+</main>
+
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const api=async(u,m='GET',b)=>{const r=await fetch(u,{method:m,headers:{'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined});const j=await r.json();if(!r.ok)throw new Error(j.error||'Terjadi kesalahan');return j};
+const fail=e=>alert(e.message);
+
+$('tabs').onclick=e=>{const t=e.target.dataset.t;if(!t)return;
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b===e.target));
+  document.querySelectorAll('section').forEach(s=>s.classList.toggle('on',s.id===t));
+  if(t==='riwayat')loadLogs();if(t==='kontak')loadContacts();};
+
+async function loadGroups(){const g=await api('/api/groups'),tot=g.reduce((a,x)=>a+x.jumlah,0);
+  $('grup').innerHTML=`<option value="*">Semua kontak (${tot})</option>`+g.map(x=>`<option value="${esc(x.grup)}">${esc(x.grup)} (${x.jumlah})</option>`).join('')}
+async function loadContacts(){const c=await api('/api/contacts');
+  $('ctb').innerHTML=c.length?c.map(x=>`<tr><td>${esc(x.nama)}</td><td>${x.nomor}</td><td>${esc(x.grup)}</td><td><button class="btn sec" style="margin:0" onclick="del(${x.id})">Hapus</button></td></tr>`).join(''):'<tr><td colspan="4" class="mute">Belum ada kontak. Tambahkan di atas atau impor dari daftar.</td></tr>';
+  loadGroups()}
+async function del(id){if(confirm('Hapus kontak ini?')){await api('/api/contacts/'+id,'DELETE');loadContacts()}}
+async function loadLogs(){const l=await api('/api/logs');
+  $('ltb').innerHTML=l.length?l.map(x=>`<tr><td class="mute">${x.waktu}</td><td>${esc(x.nama)}<br><span class="mute">${x.nomor}</span></td><td class="${x.status==='terkirim'?'ok':'err'}">${x.status}${x.error?'<br><span class="mute">'+esc(x.error)+'</span>':''}</td><td>${esc(x.pesan)}</td></tr>`).join(''):'<tr><td colspan="4" class="mute">Belum ada pengiriman.</td></tr>'}
+
+$('addBtn').onclick=async()=>{try{await api('/api/contacts','POST',{nama:$('n1').value,nomor:$('n2').value,grup:$('n3').value});$('n1').value=$('n2').value='';loadContacts()}catch(e){fail(e)}};
+$('impBtn').onclick=async()=>{try{const r=await api('/api/contacts/import','POST',{text:$('imp').value});alert(`${r.masuk} kontak masuk, ${r.lewat} dilewati (duplikat atau tidak valid).`);$('imp').value='';loadContacts()}catch(e){fail(e)}};
+$('clrBtn').onclick=async()=>{if(confirm('Hapus semua riwayat?')){await api('/api/logs','DELETE');loadLogs()}};
+$('kirimBtn').onclick=async()=>{
+  const g=$('grup').selectedOptions[0].text;
+  if(!confirm(`Kirim broadcast ke: ${g}?`))return;
+  try{await api('/api/broadcast','POST',{pesan:$('pesan').value,grup:$('grup').value,minDelay:+$('minD').value,maxDelay:Math.max(+$('maxD').value,+$('minD').value)})}catch(e){fail(e)}};
+$('stopBtn').onclick=()=>api('/api/stop','POST');
+
+const label={starting:'Memulai…',scan:'Menunggu scan QR',ready:'Terhubung',auth_failure:'Autentikasi gagal',disconnected:'Terputus'};
+async function poll(){try{const s=await api('/api/status');
+  $('st').textContent=label[s.status]||s.status;$('st').classList.toggle('off',s.status!=='ready');
+  $('qrbox').style.display=s.qr?'block':'none';if(s.qr)$('qr').src=s.qr;
+  const j=s.job,show=j.total>0;$('prog').style.display=show?'block':'none';
+  if(show){$('progTxt').textContent=`${j.running?'Mengirim':'Selesai'}: ${j.done}/${j.total} · berhasil ${j.ok} · gagal ${j.fail}`;$('progBar').style.width=(j.done/j.total*100)+'%'}
+  $('kirimBtn').style.display=j.running?'none':'inline-block';$('stopBtn').style.display=j.running?'inline-block':'none';
+}catch{}}
+loadGroups();poll();setInterval(poll,2000);
+</script>
+</body>
+</html>
