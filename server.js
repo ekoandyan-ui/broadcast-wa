@@ -1,7 +1,7 @@
 const express = require('express');
 const { DatabaseSync } = require('node:sqlite'); // bawaan Node 22.5+, tanpa kompilasi
 const QR = require('qrcode');
-const { Client, LocalAuth } = require('whatsapp-web.js');
+const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 
 const PORT = process.env.PORT || 3000;
 const db = new DatabaseSync('data.db');
@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS logs(id INTEGER PRIMARY KEY, waktu TEXT DEFAULT CURRE
 `);
 
 const app = express();
-app.use(express.json({ limit: '5mb' }));
+app.use(express.json({ limit: '25mb' }));
 app.use(express.static('public'));
 
 // ---- WhatsApp client ----
@@ -72,8 +72,13 @@ app.delete('/api/contacts/:id', (req, res) => { db.prepare('DELETE FROM contacts
 app.post('/api/broadcast', (req, res) => {
   if (state.status !== 'ready') return res.status(400).json({ error: 'WhatsApp belum terhubung. Scan QR dulu.' });
   if (state.job.running) return res.status(400).json({ error: 'Masih ada broadcast yang berjalan.' });
-  const { pesan, grup, minDelay = 5, maxDelay = 15 } = req.body;
-  if (!pesan || !pesan.trim()) return res.status(400).json({ error: 'Pesan tidak boleh kosong.' });
+  const { pesan = '', grup, minDelay = 5, maxDelay = 15, gambar } = req.body;
+  if (!pesan.trim() && !gambar) return res.status(400).json({ error: 'Isi pesan atau pilih gambar.' });
+  let media = null;
+  if (gambar) {
+    if (!/^image\/(jpeg|png|webp)$/.test(gambar.mimetype || '') || !gambar.data) return res.status(400).json({ error: 'Format gambar harus JPG, PNG, atau WEBP.' });
+    media = new MessageMedia(gambar.mimetype, gambar.data, gambar.filename || 'gambar');
+  }
   const list = grup && grup !== '*' ? db.prepare('SELECT * FROM contacts WHERE grup=?').all(grup) : db.prepare('SELECT * FROM contacts').all();
   if (!list.length) return res.status(400).json({ error: 'Tidak ada penerima.' });
   state.job = { running: true, total: list.length, done: 0, ok: 0, fail: 0 };
@@ -83,12 +88,14 @@ app.post('/api/broadcast', (req, res) => {
     for (const c of list) {
       if (!state.job.running) break; // dihentikan
       const teks = fill(pesan, c);
+      const catatan = (media ? `[Gambar: ${media.filename}] ` : '') + teks;
       try {
         const id = await wa.getNumberId(c.nomor);
         if (!id) throw new Error('Nomor tidak terdaftar di WhatsApp');
-        await wa.sendMessage(id._serialized, teks);
-        log.run(c.nama, c.nomor, teks, 'terkirim', null); state.job.ok++;
-      } catch (e) { log.run(c.nama, c.nomor, teks, 'gagal', e.message); state.job.fail++; }
+        if (media) await wa.sendMessage(id._serialized, media, { caption: teks }); // teks menjadi keterangan gambar
+        else await wa.sendMessage(id._serialized, teks);
+        log.run(c.nama, c.nomor, catatan, 'terkirim', null); state.job.ok++;
+      } catch (e) { log.run(c.nama, c.nomor, catatan, 'gagal', e.message); state.job.fail++; }
       state.job.done++;
       await sleep(rand(minDelay, maxDelay) * 1000);
     }

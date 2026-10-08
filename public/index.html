@@ -30,6 +30,7 @@ table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:8px;bord
 .wrap{overflow-x:auto}
 .bar{height:10px;background:var(--acc2);border-radius:99px;overflow:hidden;margin:10px 0}.bar i{display:block;height:100%;width:0;background:var(--acc);transition:width .3s}
 .ok{color:var(--acc)}.err{color:var(--bad)}.mute{color:var(--mute);font-size:13px}
+#prev{max-width:220px;max-height:220px;border-radius:6px;border:1px solid var(--line);display:block;margin:8px 0}
 #qr{max-width:260px;display:block;margin:10px auto}
 </style>
 </head>
@@ -53,6 +54,11 @@ table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:8px;bord
     <select id="grup"></select>
     <label for="pesan">Pesan</label>
     <textarea id="pesan" placeholder="Halo {{nama}}, ..."></textarea>
+    <label for="gbr">Gambar (opsional)</label>
+    <input id="gbr" type="file" accept="image/jpeg,image/png,image/webp">
+    <img id="prev" alt="Pratinjau gambar" style="display:none">
+    <button class="btn sec" id="gbrDel" style="display:none;margin-top:0">Hapus gambar</button>
+    <p class="mute">Jika gambar dipilih, isi pesan dikirim sebagai keterangan (caption) di bawah gambar. Maksimal 10 MB.</p>
     <p class="mute">Variabel: <code>{{nama}}</code> <code>{{nomor}}</code> <code>{{grup}}</code>. Gunakan *tebal* dan _miring_ seperti di WhatsApp.</p>
     <div class="row">
       <div><label for="minD">Jeda minimal (detik)</label><input id="minD" type="number" min="3" value="5"></div>
@@ -99,6 +105,14 @@ const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const api=async(u,m='GET',b)=>{const r=await fetch(u,{method:m,headers:{'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined});const j=await r.json();if(!r.ok)throw new Error(j.error||'Terjadi kesalahan');return j};
 const fail=e=>alert(e.message);
+let gambar=null;
+$('gbr').onchange=e=>{const f=e.target.files[0];if(!f)return clearImg();
+  if(!/^image\/(jpeg|png|webp)$/.test(f.type)){alert('Format harus JPG, PNG, atau WEBP.');return clearImg()}
+  if(f.size>10*1024*1024){alert('Ukuran gambar maksimal 10 MB.');return clearImg()}
+  const r=new FileReader();r.onload=()=>{gambar={mimetype:f.type,filename:f.name,data:r.result.split(',')[1]};
+    $('prev').src=r.result;$('prev').style.display='block';$('gbrDel').style.display='inline-block'};r.readAsDataURL(f)};
+function clearImg(){gambar=null;$('gbr').value='';$('prev').style.display='none';$('gbrDel').style.display='none'}
+$('gbrDel').onclick=clearImg;
 
 $('tabs').onclick=e=>{const t=e.target.dataset.t;if(!t)return;
   document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b===e.target));
@@ -120,7 +134,7 @@ $('clrBtn').onclick=async()=>{if(confirm('Hapus semua riwayat?')){await api('/ap
 $('kirimBtn').onclick=async()=>{
   const g=$('grup').selectedOptions[0].text;
   if(!confirm(`Kirim broadcast ke: ${g}?`))return;
-  try{await api('/api/broadcast','POST',{pesan:$('pesan').value,grup:$('grup').value,minDelay:+$('minD').value,maxDelay:Math.max(+$('maxD').value,+$('minD').value)})}catch(e){fail(e)}};
+  try{await api('/api/broadcast','POST',{pesan:$('pesan').value,grup:$('grup').value,minDelay:+$('minD').value,maxDelay:Math.max(+$('maxD').value,+$('minD').value),gambar})}catch(e){fail(e)}};
 $('stopBtn').onclick=()=>api('/api/stop','POST');
 
 const label={starting:'Memulai…',scan:'Menunggu scan QR',ready:'Terhubung',auth_failure:'Autentikasi gagal',disconnected:'Terputus'};
